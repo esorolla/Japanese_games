@@ -22,6 +22,8 @@ CLR_GRID_BG = "#ffffff"   # single-grid active cell
 CLR_OVERLAP = "#ddeeff"   # cell shared by two sub-grids
 CLR_GIVEN   = "#000000"   # pre-filled digits
 CLR_SOLVED  = "#1a6fbf"   # digits filled by the solver
+CLR_CORRECT = "#2e7d32"   # user digit matching the solution
+CLR_WRONG   = "#c62828"   # user digit not matching the solution
 CLR_LINE    = "#333333"   # grid lines
 
 CELL   = 34   # pixel size of each cell
@@ -29,8 +31,13 @@ MARGIN = 4    # canvas margin in pixels
 
 
 class SamuraiGUI:
-    def __init__(self, root: tk.Tk, initial_board=None) -> None:
+    def __init__(self, root: tk.Tk, initial_board=None, on_home=None,
+                 regenerate_fn=None, initial_solution=None) -> None:
         self.root = root
+        self._on_home = on_home
+        self._regenerate_fn = regenerate_fn
+        self._solution: list[list[int]] | None = None
+        self._given: set[tuple[int, int]] = set()
         self.root.title("Samurai Sudoku Solver")
         self.root.resizable(True, True)
         self.root.configure(bg=CLR_BG)
@@ -39,6 +46,12 @@ class SamuraiGUI:
         self._build_buttons()
         if initial_board is not None:
             self._load_board(initial_board)
+            if initial_solution is not None:
+                self._solution = initial_solution
+            else:
+                result = solve_samurai(copy.deepcopy(initial_board))
+                if result is not None:
+                    self._solution = result
 
     # ------------------------------------------------------------------
     # Helpers
@@ -109,11 +122,20 @@ class SamuraiGUI:
         btn_frame = tk.Frame(self.root, bg=CLR_BG)
         btn_frame.pack(pady=(5, 5))
 
-        btn_style = dict(font=("Arial", 12), width=8, relief="groove", cursor="hand2")
-        tk.Button(btn_frame, text="Solve", command=self._on_solve,
-                  bg="#4a90d9", fg="white", **btn_style).pack(side="left", padx=6)
-        tk.Button(btn_frame, text="Clear", command=self._on_clear,
-                  bg="#e07050", fg="white", **btn_style).pack(side="left", padx=6)
+        btn_style = dict(font=("Arial", 12), relief="groove", cursor="hand2")
+        if self._regenerate_fn is None:
+            tk.Button(btn_frame, text="Display solution", command=self._on_display_solution,
+                      bg="#4a90d9", fg="white", **btn_style).pack(side="left", padx=6)
+            tk.Button(btn_frame, text="Clear", command=self._on_clear,
+                      bg="#e07050", fg="white", **btn_style).pack(side="left", padx=6)
+        else:
+            tk.Button(btn_frame, text="Check solution", command=self._on_check_solution,
+                      bg="#4a90d9", fg="white", **btn_style).pack(side="left", padx=6)
+            tk.Button(btn_frame, text="Regenerate", command=self._on_regenerate,
+                      bg="#e07050", fg="white", **btn_style).pack(side="left", padx=6)
+        if self._on_home is not None:
+            tk.Button(btn_frame, text="Home", command=self._on_home,
+                      bg="#6c757d", fg="white", **btn_style).pack(side="left", padx=6)
 
         self.status_var = tk.StringVar()
         tk.Label(self.root, textvariable=self.status_var,
@@ -147,16 +169,50 @@ class SamuraiGUI:
             entry.insert(0, str(solved[r][c]))
             entry.config(fg=CLR_GIVEN if original[r][c] != 0 else CLR_SOLVED)
 
-    def _on_solve(self) -> None:
+    def _on_check_solution(self) -> None:
+        if self._solution is None:
+            return
+        all_correct = True
+        for (r, c), entry in self.cells.items():
+            if (r, c) in self._given:
+                continue
+            val = entry.get().strip()
+            if not val:
+                all_correct = False
+            elif int(val) == self._solution[r][c]:
+                entry.config(fg=CLR_CORRECT)
+            else:
+                entry.config(fg=CLR_WRONG)
+                all_correct = False
+        if all_correct:
+            self.status_var.set("Victory! Puzzle solved correctly!")
+            messagebox.showinfo("Victory!", "Congratulations! You solved the puzzle!")
+
+    def _on_regenerate(self) -> None:
+        for (r, c), entry in self.cells.items():
+            entry.config(state="normal", fg=CLR_GIVEN, bg=self._cell_bg(r, c))
+            entry.delete(0, tk.END)
+        self._given = set()
+        self._solution = None
+        self.status_var.set("")
+        new_board, new_solution = self._regenerate_fn()
+        self._load_board(new_board)
+        self._solution = new_solution
+
+    def _on_display_solution(self) -> None:
         board    = self._read_board()
         original = copy.deepcopy(board)
-        result   = solve_samurai(board)
-        if result is None:
-            self.status_var.set("No solution found!")
-            messagebox.showerror("Unsolvable", "This board has no solution.")
-        else:
-            self._display_solution(result, original)
-            self.status_var.set("Solved!")
+
+        if self._solution is None:
+            result = solve_samurai(copy.deepcopy(board))
+            if result is None:
+                self.status_var.set("No solution found!")
+                messagebox.showerror("Unsolvable", "This board has no solution.")
+                return
+            self._solution = result
+
+        self._display_solution(self._solution, original)
+        self.status_var.set("Solved!")
 
     def _on_clear(self) -> None:
         for (r, c), entry in self.cells.items():
@@ -168,6 +224,7 @@ class SamuraiGUI:
         for (r, c), entry in self.cells.items():
             if board[r][c] != 0:
                 entry.insert(0, str(board[r][c]))
+                self._given.add((r, c))
 
 
 if __name__ == "__main__":

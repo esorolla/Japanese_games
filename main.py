@@ -48,24 +48,36 @@ def main() -> None:
             root.update()
 
         board = None
+        regenerate_fn = None
+        samurai_solution = None
         if mode == 3:
             from sudoku_generator import generate_puzzle
             board = generate_puzzle()
+            regenerate_fn = generate_puzzle
         elif mode == 4:
             from samurai_generator import generate_samurai_puzzle
-            board = generate_samurai_puzzle()
+            board, samurai_solution = generate_samurai_puzzle()
+            regenerate_fn = generate_samurai_puzzle
 
         # Hide the launcher and open the game as a child Toplevel
         root.withdraw()
         game_win = tk.Toplevel(root)
         game_win.protocol("WM_DELETE_WINDOW", root.destroy)
 
+        def go_home() -> None:
+            game_win.destroy()
+            status_var.set("")
+            for btn in buttons:
+                btn.config(state="normal")
+            root.deiconify()
+
         if mode in (1, 3):
             from sudoku_gui import SudokuGUI
-            SudokuGUI(game_win, initial_board=board)
+            SudokuGUI(game_win, initial_board=board, on_home=go_home, regenerate_fn=regenerate_fn)
         else:
             from samurai_gui import SamuraiGUI
-            SamuraiGUI(game_win, initial_board=board)
+            SamuraiGUI(game_win, initial_board=board, on_home=go_home,
+                       regenerate_fn=regenerate_fn, initial_solution=samurai_solution)
 
     for mode, label, color in options:
         btn = tk.Button(

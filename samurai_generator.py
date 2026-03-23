@@ -12,6 +12,7 @@ Strategy
 Because the 4 outer grids only overlap with the centre (not with each
 other), they can be generated independently once the centre is fixed.
 """
+import copy
 import random
 
 from samurai_solver import BOARD_SIZE, SUBGRID_ORIGINS, is_active
@@ -75,18 +76,23 @@ def generate_complete_samurai() -> list[list[int]]:
         # Rare failure – retry with a fresh centre grid
 
 
-def generate_samurai_puzzle(num_clues: int = 150) -> list[list[int]]:
+def generate_samurai_puzzle(
+    num_clues: int = 150,
+) -> tuple[list[list[int]], list[list[int]]]:
     """
-    Return a 21x21 Samurai Sudoku puzzle keeping num_clues given cells.
-    Empty cells and dead-zone cells are 0.
+    Return (puzzle, solution) for a 21x21 Samurai Sudoku.
+
+    puzzle   – num_clues cells filled, the rest are 0.
+    solution – the fully solved board (saved before cells are removed).
 
     The total number of active cells is 369 (5 grids minus 4 shared 3x3 boxes).
     A typical value for num_clues is 120-160 (~30 per sub-grid on average).
     """
     board = generate_complete_samurai()
+    solution = copy.deepcopy(board)
     active = [(r, c) for r in range(BOARD_SIZE)
               for c in range(BOARD_SIZE) if is_active(r, c)]
     random.shuffle(active)
     for r, c in active[num_clues:]:
         board[r][c] = 0
-    return board
+    return board, solution
