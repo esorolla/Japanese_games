@@ -13,6 +13,11 @@ CLR_BG = "#f0f0f0"
 
 
 def main() -> None:
+    """Builds and displays the launcher menu, then starts the Tkinter event loop.
+
+    Creates a window with four mode buttons. Clicking a button calls
+    launch(mode), which hides the menu and opens the appropriate game screen.
+    """
     root = tk.Tk()
     root.title("Sudoku – Choose a Game")
     root.resizable(True, True)
@@ -39,10 +44,21 @@ def main() -> None:
     ]
 
     def launch(mode: int) -> None:
+        """Disables menu buttons, generates a board if needed, hides the menu,
+        and opens the game window for the selected mode.
+
+        Parameters
+        ----------
+        mode : int
+            1 – Normal Sudoku, manual entry
+            2 – Samurai Sudoku, manual entry
+            3 – Normal Sudoku, random puzzle
+            4 – Samurai Sudoku, random puzzle
+        """
         for btn in buttons:
             btn.config(state="disabled")
 
-        # Show a loading message for random modes before the (brief) generation
+        # Shows a loading message for random modes before the (brief) generation
         if mode in (3, 4):
             status_var.set("Generating puzzle, please wait…")
             root.update()
@@ -59,12 +75,13 @@ def main() -> None:
             board, samurai_solution = generate_samurai_puzzle()
             regenerate_fn = generate_samurai_puzzle
 
-        # Hide the launcher and open the game as a child Toplevel
+        # Hides the launcher and open the game as a child Toplevel
         root.withdraw()
         game_win = tk.Toplevel(root)
         game_win.protocol("WM_DELETE_WINDOW", root.destroy)
 
         def go_home() -> None:
+            """Destroys the game window and restores the launcher menu."""
             game_win.destroy()
             status_var.set("")
             for btn in buttons:

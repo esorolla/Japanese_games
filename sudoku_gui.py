@@ -1,6 +1,12 @@
 """
-Tkinter GUI for the Sudoku solver.
-Imports the solver logic from sudoku_solver.py without modifying it.
+Tkinter GUI for the standard 9×9 Sudoku solver.
+
+Provides the SudokuGUI class, which renders the grid and buttons inside a
+Tkinter window (typically a Toplevel created by main.py).
+
+Two button layouts are supported, chosen via the regenerate_fn parameter:
+  - Manual mode (regenerate_fn=None): Display solution, Clear, Home
+  - Random mode (regenerate_fn set):  Check solution, Regenerate, Home
 """
 import tkinter as tk
 from tkinter import messagebox
@@ -22,7 +28,24 @@ CLR_BOX_THIN  = "#aaaaaa"   # thin border between cells within a box
 
 
 class SudokuGUI:
-    def __init__(self, root: tk.Tk, initial_board=None, on_home=None, regenerate_fn=None) -> None:
+    def __init__(self, root: tk.Tk, initial_board=None, on_home=None,
+                 regenerate_fn=None) -> None:
+        """Initializes the GUI and optionally pre-load a puzzle.
+
+        Parameters
+        ----------
+        root : tk.Tk | tk.Toplevel
+            The parent window in which the GUI is built.
+        initial_board : list[list[int]] | None
+            Pre-filled 9×9 board (0 = empty). If None, a blank grid is shown.
+        on_home : callable | None
+            Called when the Home button is clicked. If None, no Home button
+            is shown.
+        regenerate_fn : callable | None
+            Zero-argument callable that returns a new 9×9 board. When set,
+            random-mode buttons (Check solution, Regenerate) are displayed
+            instead of manual-mode buttons (Display solution, Clear).
+        """
         self.root = root
         self._on_home = on_home
         self._regenerate_fn = regenerate_fn
@@ -45,7 +68,7 @@ class SudokuGUI:
     # ------------------------------------------------------------------
 
     def _build_grid(self) -> None:
-        """Draw the 9×9 input grid with thicker lines between the 3×3 boxes."""
+        """Draws the 9×9 input grid with thicker lines between the 3×3 boxes."""
         outer = tk.Frame(self.root, bg=CLR_BOX_THICK, bd=2, relief="solid")
         outer.pack(padx=15, pady=(15, 5))
 
@@ -78,6 +101,12 @@ class SudokuGUI:
                 self.cells[(r, c)] = entry
 
     def _build_buttons(self) -> None:
+        """Creates the button bar below the grid.
+
+        Button set depends on mode:
+          Manual (regenerate_fn is None): Display solution, Clear, [Home]
+          Random (regenerate_fn set):     Check solution, Regenerate, [Home]
+        """
         btn_frame = tk.Frame(self.root, bg=CLR_BG)
         btn_frame.pack(pady=(5, 5))
 
@@ -105,7 +134,7 @@ class SudokuGUI:
     # ------------------------------------------------------------------
 
     def _validate_cell(self, new_value: str) -> bool:
-        """Allow only a single digit 1-9, or an empty cell."""
+        """Allows only a single digit 1-9, or an empty cell."""
         if new_value == "":
             return True
         return len(new_value) == 1 and new_value in "123456789"
@@ -115,6 +144,10 @@ class SudokuGUI:
     # ------------------------------------------------------------------
 
     def _read_board(self) -> list[list[int]]:
+        """Reads all cell entries and return the current board as a 9×9 list.
+
+        Empty cells are represented as 0.
+        """
         board = []
         for r in range(BOARD_SIZE):
             row = []
@@ -126,6 +159,11 @@ class SudokuGUI:
 
     def _display_solution(self, solved: list[list[int]],
                           original: list[list[int]]) -> None:
+        """Fills all cells with the solved values and apply color coding.
+
+        Digits that were pre-filled in original are shown in black;
+        digits added by the solver are shown in blue.
+        """
         for r in range(BOARD_SIZE):
             for c in range(BOARD_SIZE):
                 entry = self.cells[(r, c)]
@@ -136,6 +174,11 @@ class SudokuGUI:
                 entry.config(fg=CLR_GIVEN if original[r][c] != 0 else CLR_SOLVED)
 
     def _on_check_solution(self) -> None:
+        """Colors each user-entered cell green (correct) or red (wrong).
+
+        Skips pre-filled clue cells. If every non-clue cell is correctly
+        filled, shows a Victory popup and status message.
+        """
         if self._solution is None:
             return
         all_correct = True
@@ -156,6 +199,7 @@ class SudokuGUI:
             messagebox.showinfo("Victory!", "Congratulations! You solved the puzzle!")
 
     def _on_regenerate(self) -> None:
+        """Clears the board, generate a new random puzzle, and reload."""
         for entry in self.cells.values():
             entry.config(state="normal", fg=CLR_GIVEN)
             entry.delete(0, tk.END)
@@ -169,6 +213,7 @@ class SudokuGUI:
             self._solution = result
 
     def _on_display_solution(self) -> None:
+        """Solves the puzzle (if not already solved) and display the full solution."""
         board = self._read_board()
         original = [row[:] for row in board]
 
@@ -184,20 +229,22 @@ class SudokuGUI:
         self.status_var.set("Solved!")
 
     def _on_clear(self) -> None:
+        """Clears all cell entries and reset the status message."""
         for entry in self.cells.values():
             entry.config(state="normal", fg=CLR_GIVEN)
             entry.delete(0, tk.END)
         self.status_var.set("")
 
     def _load_board(self, board: list[list[int]]) -> None:
+        """Inserts pre-filled digits into the grid and record them as given clues.
+
+        Parameters
+        ----------
+        board : list[list[int]]
+            9×9 grid where non-zero values are inserted as clue digits.
+        """
         for r in range(BOARD_SIZE):
             for c in range(BOARD_SIZE):
                 if board[r][c] != 0:
                     self.cells[(r, c)].insert(0, str(board[r][c]))
                     self._given.add((r, c))
-
-
-if __name__ == "__main__":
-    root = tk.Tk()
-    SudokuGUI(root)
-    root.mainloop()

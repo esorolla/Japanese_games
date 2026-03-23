@@ -1,7 +1,7 @@
 """
 Random Sudoku puzzle generator.
 
-Generates a complete valid 9x9 board via randomised backtracking, then
+Generates a complete valid 9x9 board via randomized backtracking, then
 removes cells to produce a puzzle. The resulting puzzle is derived from a
 unique complete solution but does not guarantee a unique solution after
 removal (checking would add significant time). For gameplay purposes this
@@ -14,6 +14,8 @@ BOX_SIZE   = 3
 
 
 def _is_valid(board, r, c, num):
+    """Returns True if placing num at (r, c) violates no row, column, or
+    3×3 box constraint in the current board state."""
     if num in board[r]:
         return False
     for row in range(BOARD_SIZE):
@@ -29,7 +31,7 @@ def _is_valid(board, r, c, num):
 
 
 def _fill_board(board):
-    """Fill empty cells with random valid digits via backtracking."""
+    """Fills empty cells with random valid digits via backtracking."""
     for r in range(BOARD_SIZE):
         for c in range(BOARD_SIZE):
             if board[r][c] == 0:
@@ -47,7 +49,7 @@ def _fill_board(board):
 
 def generate_puzzle(num_clues: int = 35) -> list[list[int]]:
     """
-    Return a 9x9 Sudoku puzzle with approximately num_clues given cells.
+    Returns a 9x9 Sudoku puzzle with approximately num_clues given cells.
     Empty cells are represented as 0.
     """
     board = [[0] * BOARD_SIZE for _ in range(BOARD_SIZE)]

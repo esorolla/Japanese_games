@@ -27,7 +27,7 @@ SUBGRID_ORIGINS = [
 
 
 def get_subgrids(r, c):
-    """Return the indices of all sub-grids that contain cell (r, c)."""
+    """Returns the indices of all sub-grids that contain cell (r, c)."""
     return [
         i for i, (gr, gc) in enumerate(SUBGRID_ORIGINS)
         if gr <= r < gr + SUBGRID_SIZE and gc <= c < gc + SUBGRID_SIZE
@@ -35,11 +35,21 @@ def get_subgrids(r, c):
 
 
 def is_active(r, c):
-    """Return True if (r, c) belongs to at least one sub-grid."""
+    """Returns True if (r, c) belongs to at least one sub-grid."""
     return bool(get_subgrids(r, c))
 
 
 def print_board(board):
+    """Prints the 21×21 Samurai board to stdout.
+
+    Active cells show their digit (or '.' if empty); dead-zone cells are
+    printed as two spaces so the five sub-grids remain visually aligned.
+
+    Parameters
+    ----------
+    board : list[list[int]]
+        21×21 grid where 0 represents an empty active cell.
+    """
     for r in range(BOARD_SIZE):
         row_str = ""
         for c in range(BOARD_SIZE):
@@ -52,7 +62,7 @@ def print_board(board):
 
 def solve_samurai(board):
     """
-    Solve a Samurai Sudoku puzzle in-place using backtracking.
+    Solves a Samurai Sudoku puzzle in-place using backtracking.
 
     Parameters
     ----------
@@ -65,6 +75,8 @@ def solve_samurai(board):
     """
 
     def is_valid(r, c, num):
+        """Returns True if placing num at (r, c) violates no constraint in
+        any sub-grid that contains that cell."""
         for i in get_subgrids(r, c):
             gr, gc = SUBGRID_ORIGINS[i]
             # Row within this sub-grid
@@ -85,6 +97,8 @@ def solve_samurai(board):
         return True
 
     def initial_check():
+        """Returns False if any pre-filled digit conflicts with another
+        clue; otherwise return True."""
         for r in range(BOARD_SIZE):
             for c in range(BOARD_SIZE):
                 if not is_active(r, c) or board[r][c] == 0:
@@ -99,6 +113,11 @@ def solve_samurai(board):
         return True
 
     def solve():
+        """Recursively fills empty active cells via backtracking.
+
+        Returns True when all active cells are validly filled, False when
+        a dead-end is reached (triggers backtracking in the caller).
+        """
         for r in range(BOARD_SIZE):
             for c in range(BOARD_SIZE):
                 if not is_active(r, c) or board[r][c] != 0:
@@ -121,14 +140,3 @@ def solve_samurai(board):
     return None
 
 
-if __name__ == '__main__':
-    # Provide clues by replacing 0s with known digits.
-    # Warning: solving a near-empty Samurai Sudoku with pure backtracking
-    # can be very slow; supply enough clues for a well-constrained puzzle.
-    board = [[0] * BOARD_SIZE for _ in range(BOARD_SIZE)]
-    print("Initial board:")
-    print_board(board)
-    result = solve_samurai(board)
-    if result:
-        print("\nSolved board:")
-        print_board(result)

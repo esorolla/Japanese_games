@@ -1,11 +1,20 @@
 """
 Tkinter GUI for the Samurai Sudoku solver.
-Imports solver logic from samurai_solver.py without modifying it.
 
-Layout: Canvas-based 21×21 grid.
-  Active cells – white (single grid) or light-blue (overlap zone)
-  Dead zones   – plain white canvas background, no grid lines drawn
-  Grid lines   – drawn explicitly only inside each of the 5 sub-grids
+Provides the SamuraiGUI class, which renders a 21×21 canvas grid and buttons
+inside a Tkinter window (typically a Toplevel created by main.py).
+
+Canvas layout:
+  Active cells  – white background (single sub-grid) or light-blue (overlap zone)
+  Dead zones    – plain white canvas background, no Entry widget, no grid lines
+  Grid lines    – drawn explicitly only inside each of the 5 sub-grids
+
+Two button layouts are supported, chosen via the regenerate_fn parameter:
+  - Manual mode (regenerate_fn=None): Display solution, Clear, Home
+  - Random mode (regenerate_fn set):  Check solution, Regenerate, Home
+
+For random mode the solution is supplied directly via initial_solution so
+that no second solver pass is needed when the window opens.
 """
 import copy
 import tkinter as tk
@@ -33,6 +42,25 @@ MARGIN = 4    # canvas margin in pixels
 class SamuraiGUI:
     def __init__(self, root: tk.Tk, initial_board=None, on_home=None,
                  regenerate_fn=None, initial_solution=None) -> None:
+        """Initializes the GUI and optionally pre-loads a puzzle.
+
+        Parameters
+        ----------
+        root : tk.Tk | tk.Toplevel
+            The parent window in which the GUI is built.
+        initial_board : list[list[int]] | None
+            Pre-filled 21×21 board (0 = empty or dead zone). If None, a
+            blank grid is shown.
+        on_home : callable | None
+            Called when the Home button is clicked. If None, no Home button
+            is shown.
+        regenerate_fn : callable | None
+            Zero-argument callable that returns (board, solution) for a new
+            Samurai puzzle. When set, random-mode buttons are displayed.
+        initial_solution : list[list[int]] | None
+            Pre-computed solution for initial_board. Supplying this avoids
+            running the solver at startup (important for performance).
+        """
         self.root = root
         self._on_home = on_home
         self._regenerate_fn = regenerate_fn
@@ -58,6 +86,11 @@ class SamuraiGUI:
     # ------------------------------------------------------------------
 
     def _cell_bg(self, r, c) -> str:
+        """Returns the background color for cell (r, c).
+
+        Overlaps cells (shared by two sub-grids) use a light blue tint to
+        distinguish them visually from regular cells.
+        """
         return CLR_OVERLAP if len(get_subgrids(r, c)) > 1 else CLR_GRID_BG
 
     # ------------------------------------------------------------------
@@ -65,6 +98,12 @@ class SamuraiGUI:
     # ------------------------------------------------------------------
 
     def _build_grid(self) -> None:
+        """Creates the canvas, draw sub-grid lines, and place Entry widgets.
+
+        Grid lines are drawn only within the five active sub-grids; dead-zone
+        areas are left as plain white canvas. Entry widgets are placed only for
+        active cells via canvas.create_window.
+        """
         W = BOARD_SIZE * CELL + 2 * MARGIN
         H = BOARD_SIZE * CELL + 2 * MARGIN
 
@@ -119,6 +158,12 @@ class SamuraiGUI:
                 self.cells[(r, c)] = entry
 
     def _build_buttons(self) -> None:
+        """Creates the button bar below the grid.
+
+        Button set depends on mode:
+          Manual (regenerate_fn is None): Display solution, Clear, [Home]
+          Random (regenerate_fn set):     Check solution, Regenerate, [Home]
+        """
         btn_frame = tk.Frame(self.root, bg=CLR_BG)
         btn_frame.pack(pady=(5, 5))
 
@@ -146,7 +191,7 @@ class SamuraiGUI:
     # ------------------------------------------------------------------
 
     def _validate_cell(self, new_value: str) -> bool:
-        """Allow only a single digit 1-9, or an empty cell."""
+        """Allows only a single digit 1-9, or an empty cell."""
         return new_value == "" or (len(new_value) == 1 and new_value in "123456789")
 
     # ------------------------------------------------------------------
@@ -154,6 +199,10 @@ class SamuraiGUI:
     # ------------------------------------------------------------------
 
     def _read_board(self) -> list[list[int]]:
+        """Reads all active cell entries and return the current 21×21 board.
+
+        Inactive (dead-zone) cells and empty active cells are represented as 0.
+        """
         board = [[0] * BOARD_SIZE for _ in range(BOARD_SIZE)]
         for (r, c), entry in self.cells.items():
             raw = entry.get().strip()
@@ -163,6 +212,11 @@ class SamuraiGUI:
 
     def _display_solution(self, solved: list[list[int]],
                           original: list[list[int]]) -> None:
+        """Fills all active cells with the solved values and apply color coding.
+
+        Digits that were pre-filled in original are shown in black;
+        digits added by the solver are shown in blue.
+        """
         for (r, c), entry in self.cells.items():
             entry.config(state="normal")
             entry.delete(0, tk.END)
@@ -170,6 +224,11 @@ class SamuraiGUI:
             entry.config(fg=CLR_GIVEN if original[r][c] != 0 else CLR_SOLVED)
 
     def _on_check_solution(self) -> None:
+        """Colors each user-entered cell green (correct) or red (wrong).
+
+        Skips pre-filled clue cells. If every non-clue cell is correctly
+        filled, shows a Victory popup and status message.
+        """
         if self._solution is None:
             return
         all_correct = True
@@ -189,6 +248,11 @@ class SamuraiGUI:
             messagebox.showinfo("Victory!", "Congratulations! You solved the puzzle!")
 
     def _on_regenerate(self) -> None:
+        """Clears the board, generate a new random puzzle, and reload.
+
+        Calls regenerate_fn() which returns (board, solution), so no
+        solver pass is needed after loading.
+        """
         for (r, c), entry in self.cells.items():
             entry.config(state="normal", fg=CLR_GIVEN, bg=self._cell_bg(r, c))
             entry.delete(0, tk.END)
@@ -200,6 +264,7 @@ class SamuraiGUI:
         self._solution = new_solution
 
     def _on_display_solution(self) -> None:
+        """Solves the puzzle (if not already solved) and display the full solution."""
         board    = self._read_board()
         original = copy.deepcopy(board)
 
@@ -215,19 +280,22 @@ class SamuraiGUI:
         self.status_var.set("Solved!")
 
     def _on_clear(self) -> None:
+        """Clears all active cell entries and reset the status message."""
         for (r, c), entry in self.cells.items():
             entry.config(state="normal", fg=CLR_GIVEN, bg=self._cell_bg(r, c))
             entry.delete(0, tk.END)
         self.status_var.set("")
 
     def _load_board(self, board: list[list[int]]) -> None:
+        """Inserts pre-filled digits into active cells and record them as given clues.
+
+        Parameters
+        ----------
+        board : list[list[int]]
+            21×21 grid where non-zero values at active positions are inserted
+            as clue digits.
+        """
         for (r, c), entry in self.cells.items():
             if board[r][c] != 0:
                 entry.insert(0, str(board[r][c]))
                 self._given.add((r, c))
-
-
-if __name__ == "__main__":
-    root = tk.Tk()
-    SamuraiGUI(root)
-    root.mainloop()

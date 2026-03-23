@@ -1,6 +1,12 @@
-'''
-This is a Python script to solve Sudoku using a recursive backtracking algorithm.
-'''
+"""
+Backtracking solver for standard 9×9 Sudoku.
+
+Functions
+---------
+solve_Sudoku(board) – validates and solves a board in place; returns the solved
+                      board or None if no solution exists.
+print_board(board)  – prints the board to stdout in a readable grid format.
+"""
 import math
 
 
@@ -9,6 +15,13 @@ BOX_SIZE = 3
 
 
 def print_board(board):
+    """Prints a 9×9 Sudoku board to stdout with box separators.
+
+    Parameters
+    ----------
+    board : list[list[int]]
+        9×9 grid where 0 represents an empty cell.
+    """
     separator = ("+" + "-" * (BOX_SIZE * 2 + 1)) * BOX_SIZE + "+"
 
     for r in range(BOARD_SIZE):
@@ -25,8 +38,26 @@ def print_board(board):
 
 
 def solve_Sudoku(board):
+    """Solves a 9×9 Sudoku puzzle in place using recursive backtracking.
+
+    Validates the initial clues first. If any clue already conflicts with
+    another, returns None immediately. Otherwise, fills all empty cells and
+    returns the solved board. The board list is mutated in place.
+
+    Parameters
+    ----------
+    board : list[list[int]]
+        9×9 grid where 0 represents an empty cell.
+
+    Returns
+    -------
+    list[list[int]] | None
+        The solved board, or None if the puzzle has no solution.
+    """
 
     def initial_check():
+        """Returns False if any pre-filled digit conflicts with another in
+        its row, column, or 3×3 box; otherwise return True."""
         for r in range(0, BOARD_SIZE):
             for c in range(0, BOARD_SIZE):
                 if board[r][c] == 0:
@@ -38,6 +69,8 @@ def solve_Sudoku(board):
         return True
 
     def is_repeated(r, c, num):
+        """Returns True if num already appears elsewhere in the same row,
+        column, or 3×3 box as cell (r, c)."""
         for row in range(0, BOARD_SIZE):
             if board[row][c] == num and row != r:
                 return True
@@ -57,6 +90,8 @@ def solve_Sudoku(board):
         return False
 
     def is_valid(row, col, num):
+        """Returns True if placing num at (row, col) violates no row,
+        column, or 3×3 box constraint in the current board state."""
         for c in range(0, BOARD_SIZE):
             if board[row][c] == num:
                 return False
@@ -75,6 +110,11 @@ def solve_Sudoku(board):
         return True
 
     def solve():
+        """Recursively fills empty cells via backtracking.
+
+        Returns True when all cells are validly filled, False when a
+        dead-end is reached (triggers backtracking in the caller).
+        """
         for r in range(0, BOARD_SIZE):
             for c in range(0, BOARD_SIZE):
                 if board[r][c] == 0:
@@ -91,8 +131,6 @@ def solve_Sudoku(board):
     print_board(board)
     if initial_check():
         print("Board is valid")
-        if __name__ == "__main__":
-            input("Press Enter to solve the Sudoku puzzle...")
         solve()
         print("Solved board:")
         print_board(board)
@@ -101,20 +139,3 @@ def solve_Sudoku(board):
         print("Board is invalid")
         print("No solution can be found!")
         return None
-
-
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    # board = [[0 for _ in range(4)] for _ in range(4)]
-    board = [
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [1, 2, 0, 0, 3, 4, 0, 0, 0],
-                [3, 0, 0, 0, 8, 0, 1, 9, 0],
-                [2, 4, 0, 0, 1, 7, 0, 0, 6],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0]
-             ]
-    solve_Sudoku(board)
